@@ -9,5 +9,5 @@ import com.itextpdf.text.DocumentException;
 import com.js.pdfsigner.api.model.Certificate;
 
 public interface SignService {
-	public void signA1(MultipartFile file, Certificate certificate) throws GeneralSecurityException, IOException, DocumentException;
+	public byte[] signA1(MultipartFile file, Certificate certificate) throws GeneralSecurityException, IOException, DocumentException;
 }

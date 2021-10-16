@@ -4,6 +4,8 @@ import java.io.IOException;
 import java.security.GeneralSecurityException;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -34,11 +36,16 @@ public class SignController {
 	}
 
 	@PostMapping
-	public ResponseEntity<Void> sign(@RequestParam("file") MultipartFile file,
+	public ResponseEntity<byte[]> sign(@RequestParam("file") MultipartFile file,
 			@RequestParam("certificate") String certificateJson) {
 		try {
 			var certificate = new ObjectMapper().readValue(certificateJson, Certificate.class);
-			signService.signA1(file, certificate);
+			var result = signService.signA1(file, certificate);
+
+			return ResponseEntity.ok()
+					.header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_PDF_VALUE)
+					.body(result);
+
 		} catch (GeneralSecurityException | IOException | DocumentException e) {
 			e.printStackTrace();
 		}

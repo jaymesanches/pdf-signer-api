@@ -1,13 +1,12 @@
 package com.js.pdfsigner.api.service;
 
+import java.io.ByteArrayOutputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.security.GeneralSecurityException;
 import java.security.KeyStore;
 import java.security.PrivateKey;
-import java.security.Security;
 
-import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -29,19 +28,19 @@ import com.js.pdfsigner.api.model.Certificate;
 @Service
 public class SignServiceImpl implements SignService {
 
-	private final String DEST = "./target/signatures/%s_signed.pdf";
+//	private final String DEST = "./target/signatures/%s_signed.pdf";
 
 	@Override
-	public void signA1(MultipartFile file, Certificate certificate)
+	public byte[] signA1(MultipartFile file, Certificate certificate)
 			throws GeneralSecurityException, IOException, DocumentException {
-		this.signA1(certificate.getName(), 
+		return this.signA1(certificate.getName(), 
 				certificate.getPassword(), 
 				PdfSignatureAppearance.NOT_CERTIFIED, 
 				file,
 				certificate.getName());
 	}
 
-	private void signA1(String alias, String password, int level, MultipartFile file, String name)
+	private byte[] signA1(String alias, String password, int level, MultipartFile file, String name)
 			throws GeneralSecurityException, IOException, DocumentException {
 		var PASSWORD = password.toCharArray();
 		
@@ -56,9 +55,9 @@ public class SignServiceImpl implements SignService {
 		java.security.cert.Certificate[] chain = ks.getCertificateChain(alias);
 		// Creating the reader and the stamper
 		PdfReader reader = new PdfReader(file.getBytes());
-//		FileOutputStream os = new FileOutputStream("C:\\temp\\uploads\\hello_signed.pdf");
-		FileOutputStream os = new FileOutputStream(String.format(DEST, name));
-		PdfStamper stamper = PdfStamper.createSignature(reader, os, '\0', null, true);
+//		FileOutputStream fos = new FileOutputStream(String.format(DEST, name));
+		ByteArrayOutputStream baos = new ByteArrayOutputStream();
+		PdfStamper stamper = PdfStamper.createSignature(reader, baos, '\0', null, true);
 		// Creating the appearance
 		PdfSignatureAppearance appearance = stamper.getSignatureAppearance();
 //		appearance.setVisibleSignature(name);
@@ -72,6 +71,12 @@ public class SignServiceImpl implements SignService {
 		ExternalSignature pks = new PrivateKeySignature(pk, DigestAlgorithms.SHA256, ks.getProvider().getName());
 		ExternalDigest digest = new BouncyCastleDigest();
 		MakeSignature.signDetached(appearance, digest, pks, chain, null, null, null, 0, CryptoStandard.CMS);
+		
+//		baos.writeTo(fos);
+		var result = baos.toByteArray();
+		baos.flush();
+		baos.close();
+		return result;
 	}
 	
 		public void addAnnotation(String src, String dest) throws IOException, DocumentException {
