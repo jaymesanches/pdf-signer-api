@@ -4,13 +4,17 @@ import java.io.ByteArrayOutputStream;
 import java.io.FileOutputStream;
 import java.io.OutputStream;
 
+import org.springframework.stereotype.Service;
+
 import com.itextpdf.text.Document;
 import com.itextpdf.text.pdf.PdfContentByte;
 import com.itextpdf.text.pdf.PdfImportedPage;
 import com.itextpdf.text.pdf.PdfReader;
 import com.itextpdf.text.pdf.PdfWriter;
+import com.js.pdfsigner.api.model.Certificate;
 import com.js.pdfsigner.api.util.PdfUtil;
 
+@Service
 public class CreateTableService {
 
 	public static final String SRC = "C:\\dev\\hello.pdf";
@@ -18,7 +22,7 @@ public class CreateTableService {
 	public static final String KEYSTORE_PFX = "C:\\Users\\jayme\\certificados\\testes\\jsteste.pfx";
 	public static final String KEYSTORE_PFX_2 = "C:\\Users\\jayme\\certificados\\testes\\jaymeteste.pfx";
 
-	public void testSign() {
+	public void createFromFile() {
 		try {
 			PdfReader reader = new PdfReader(SRC);
 			var baos = new ByteArrayOutputStream();
@@ -28,7 +32,7 @@ public class CreateTableService {
 			PdfContentByte cb = writer.getDirectContent();
 
 			PdfImportedPage page;
-			int currentPageNumber = 0;
+//			int currentPageNumber = 0;
 			int pageOfCurrentReaderPDF = 0;
 
 			while (pageOfCurrentReaderPDF < reader.getNumberOfPages()) {
@@ -36,7 +40,7 @@ public class CreateTableService {
 					document.newPage();
 				}
 				pageOfCurrentReaderPDF++;
-				currentPageNumber++;
+//				currentPageNumber++;
 				page = writer.getImportedPage(reader, pageOfCurrentReaderPDF);
 				cb.addTemplate(page, 0, 0);
 			}
@@ -58,6 +62,47 @@ public class CreateTableService {
 
 		} catch (Exception e) {
 			e.printStackTrace();
+		}
+	}
+
+	public byte[] createFromBytes(byte[] fileBytes, Certificate certificate) {
+		try {
+			PdfReader reader = new PdfReader(fileBytes);
+			var baos = new ByteArrayOutputStream();
+			Document document = new Document();
+			PdfWriter writer = PdfWriter.getInstance(document, baos);
+			document.open();
+			PdfContentByte cb = writer.getDirectContent();
+
+			PdfImportedPage page;
+//			int currentPageNumber = 0;
+			int pageOfCurrentReaderPDF = 0;
+
+			while (pageOfCurrentReaderPDF < reader.getNumberOfPages()) {
+				if (pageOfCurrentReaderPDF > 0) {
+					document.newPage();
+				}
+				pageOfCurrentReaderPDF++;
+//				currentPageNumber++;
+				page = writer.getImportedPage(reader, pageOfCurrentReaderPDF);
+				cb.addTemplate(page, 0, 0);
+			}
+
+//			pageOfCurrentReaderPDF = 0;
+			var table = new PdfUtil().createTable(writer, certificate);
+			table.setTotalWidth(document.right(document.rightMargin()) - document.left(document.leftMargin()));
+
+			table.writeSelectedRows(0, -1, document.left(document.leftMargin()),
+					table.getTotalHeight() + document.bottom(document.bottomMargin()), writer.getDirectContent());
+//			document.add(table);
+
+			baos.flush();
+			document.close();
+			baos.close();
+			return baos.toByteArray();
+		} catch (Exception e) {
+			e.printStackTrace();
+			return null;
 		}
 	}
 }

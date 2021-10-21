@@ -8,7 +8,6 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -17,6 +16,7 @@ import org.springframework.web.multipart.MultipartFile;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.itextpdf.text.DocumentException;
 import com.js.pdfsigner.api.model.Certificate;
+import com.js.pdfsigner.api.service.CreateTableService;
 import com.js.pdfsigner.api.service.SignService;
 
 @RestController
@@ -24,15 +24,12 @@ import com.js.pdfsigner.api.service.SignService;
 public class SignController {
 
 	private SignService signService;
+	private CreateTableService tableService;
 
 	@Autowired
-	public SignController(SignService signService) {
+	public SignController(SignService signService, CreateTableService tableService) {
 		this.signService = signService;
-	}
-
-	@PostMapping("teste")
-	public ResponseEntity<Certificate> teste(@RequestBody Certificate signer) {
-		return ResponseEntity.ok(signer);
+		this.tableService = tableService;
 	}
 
 	@PostMapping
@@ -40,27 +37,15 @@ public class SignController {
 			@RequestParam("certificate") String certificateJson) {
 		try {
 			var certificate = new ObjectMapper().readValue(certificateJson, Certificate.class);
-			var result = signService.signA1(file, certificate);
+			var fileWithSignatureField = tableService.createFromBytes(file.getBytes(), certificate);
+			var result = signService.signA1(fileWithSignatureField, certificate);
 
-			return ResponseEntity.ok()
-					.header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_PDF_VALUE)
-					.body(result);
+			return ResponseEntity.ok().header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_PDF_VALUE).body(result);
 
 		} catch (GeneralSecurityException | IOException | DocumentException e) {
 			e.printStackTrace();
 		}
-		return null;
-	}
 
-//	@PostMapping
-//	public ResponseEntity<Void> sign(@RequestParam("file") MultipartFile file,
-//			@RequestParam("signer") String signerJson) {
-//		try {
-//			var signer = new ObjectMapper().readValue(signerJson, Signer.class);
-//			signService.sign(file, signer);
-//		} catch (GeneralSecurityException | IOException | DocumentException e) {
-//			e.printStackTrace();
-//		}
-//		return null;
-//	}
+		return ResponseEntity.internalServerError().build();
+	}
 }

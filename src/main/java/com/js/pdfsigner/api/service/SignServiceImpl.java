@@ -6,9 +6,10 @@ import java.io.IOException;
 import java.security.GeneralSecurityException;
 import java.security.KeyStore;
 import java.security.PrivateKey;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 
 import org.springframework.stereotype.Service;
-import org.springframework.web.multipart.MultipartFile;
 
 import com.itextpdf.text.DocumentException;
 import com.itextpdf.text.Rectangle;
@@ -31,36 +32,43 @@ public class SignServiceImpl implements SignService {
 //	private final String DEST = "./target/signatures/%s_signed.pdf";
 
 	@Override
-	public byte[] signA1(MultipartFile file, Certificate certificate)
+	public byte[] signA1(byte[] file, Certificate certificate)
 			throws GeneralSecurityException, IOException, DocumentException {
-		return this.signA1(certificate.getName(), 
-				certificate.getPassword(), 
-				PdfSignatureAppearance.NOT_CERTIFIED, 
-				file,
+		return this.signA1(certificate.getName(), certificate.getPassword(), PdfSignatureAppearance.NOT_CERTIFIED, file,
 				certificate.getName());
 	}
 
-	private byte[] signA1(String alias, String password, int level, MultipartFile file, String name)
+	private byte[] signA1(String alias, String password, int level, byte[] file, String name)
 			throws GeneralSecurityException, IOException, DocumentException {
-		var PASSWORD = password.toCharArray();
-		
+		var passwordChar = password.toCharArray();
+
 		KeyStore ks = KeyStore.getInstance("Windows-MY", "SunMSCAPI");
-		
+
 //		KeyStore ks = KeyStore.getInstance(KeyStore.getDefaultType());
 //		KeyStore ks = KeyStore.getInstance("pkcs12");
-//		ks.load(new FileInputStream(keystore), PASSWORD);
-		ks.load(null, PASSWORD);
+//		ks.load(new FileInputStream(keystore, passwordChar);
+//		ks.load(null, passwordChar);
+		ks.load(null, null);
 //		String alias = (String) ks.aliases().nextElement();
-		PrivateKey pk = (PrivateKey) ks.getKey(alias, PASSWORD);
+		PrivateKey pk = (PrivateKey) ks.getKey(alias, passwordChar);
 		java.security.cert.Certificate[] chain = ks.getCertificateChain(alias);
+		var cert = ks.getCertificate(alias);
 		// Creating the reader and the stamper
-		PdfReader reader = new PdfReader(file.getBytes());
+		PdfReader reader = new PdfReader(file);
 //		FileOutputStream fos = new FileOutputStream(String.format(DEST, name));
 		ByteArrayOutputStream baos = new ByteArrayOutputStream();
 		PdfStamper stamper = PdfStamper.createSignature(reader, baos, '\0', null, true);
 		// Creating the appearance
 		PdfSignatureAppearance appearance = stamper.getSignatureAppearance();
-//		appearance.setVisibleSignature(name);
+		appearance.setVisibleSignature("sig1");
+		appearance.setSignatureCreator("Protocolo Digital");
+		
+		DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss");
+		
+		appearance.setLayer2Text(
+				String.format("Assinado Digitalmente por %s em %s", alias, LocalDateTime.now().format(formatter)));
+		appearance.setLayer4Text(String.format("Assinado Digitalmente por %s.", alias));
+		appearance.setCertificate(cert);
 //		appearance.setVisibleSignature(new Rectangle(36, 88, 200, 0), 1, name);
 		appearance.setCertificationLevel(level);
 
@@ -71,15 +79,16 @@ public class SignServiceImpl implements SignService {
 		ExternalSignature pks = new PrivateKeySignature(pk, DigestAlgorithms.SHA256, ks.getProvider().getName());
 		ExternalDigest digest = new BouncyCastleDigest();
 		MakeSignature.signDetached(appearance, digest, pks, chain, null, null, null, 0, CryptoStandard.CMS);
-		
+
 //		baos.writeTo(fos);
 		var result = baos.toByteArray();
 		baos.flush();
 		baos.close();
+		stamper.close();
 		return result;
 	}
-	
-		public void addAnnotation(String src, String dest) throws IOException, DocumentException {
+
+	public void addAnnotation(String src, String dest) throws IOException, DocumentException {
 		PdfReader reader = new PdfReader(src);
 		PdfStamper stamper = new PdfStamper(reader, new FileOutputStream(dest), '\0', true);
 		PdfAnnotation comment = PdfAnnotation.createText(stamper.getWriter(), new Rectangle(200, 800, 250, 820),
